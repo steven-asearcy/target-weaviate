@@ -24,7 +24,7 @@ requests = "^2.31.0"
 [tool.poetry.dev-dependencies]
 pytest = "^7.4.3"
 singer-sdk = { version="~=0.39.0", extras = ["testing"] }
-ruff = "^0.1.0"
+ruff = "^0.14.10"
 poetry-dynamic-versioning = "^1.0.0"
 
 [tool.ruff]
