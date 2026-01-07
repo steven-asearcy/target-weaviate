@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import weaviate
-from weaviate.classes.config import Configure, Property, DataType
+from weaviate.classes.config import Configure, DataType, Property
 
 
 class WeaviateClient:
@@ -14,7 +14,7 @@ class WeaviateClient:
         weaviate_url: str,
         weaviate_api_key: str | None = None,
         logger=None,
-    ):
+    ) -> None:
         self.logger = logger
         self.weaviate_url = weaviate_url
         self.weaviate_api_key = weaviate_api_key
@@ -44,7 +44,7 @@ class WeaviateClient:
 
         return self._client
 
-    def close(self):
+    def close(self) -> None:
         if self._client:
             self._client.close()
             self._client = None
@@ -58,7 +58,7 @@ class WeaviateClient:
         collection_name: str,
         properties: list[dict] | None = None,
         vectorizer: str | None = None,
-    ):
+    ) -> None:
         client = self.connect()
 
         if self.logger:
@@ -99,7 +99,7 @@ class WeaviateClient:
         if self.logger:
             self.logger.info(f"Collection '{collection_name}' created successfully")
 
-    def delete_collection(self, collection_name: str):
+    def delete_collection(self, collection_name: str) -> None:
         client = self.connect()
         if self.logger:
             self.logger.info(f"Deleting collection '{collection_name}'...")
@@ -109,7 +109,7 @@ class WeaviateClient:
         client = self.connect()
         return client.collections.get(collection_name)
 
-    def batch_insert(self, collection_name: str, records: list[dict]):
+    def batch_insert(self, collection_name: str, records: list[dict]) -> None:
         collection = self.get_collection(collection_name)
         with collection.batch.dynamic() as batch:
             for record in records:

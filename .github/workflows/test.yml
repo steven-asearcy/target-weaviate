@@ -34,6 +34,6 @@ jobs:
       - name: Run tests
         run: poetry run pytest
       
-      - name: Run linter
-        run: poetry run ruff check target_weaviate
+    - name: Run linter
+      run: poetry run ruff check target_weaviate
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import uuid
 
-from singer_sdk.sinks import BatchSink
 from singer_sdk.helpers.capabilities import TargetLoadMethods
+from singer_sdk.sinks import BatchSink
 
 from target_weaviate.client import WeaviateClient
 
@@ -16,12 +16,12 @@ class WeaviateSink(BatchSink):
 
     max_size = 100
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._client = None
         self._collection_initialized = False
         self.collection_name = self.config.get("collection_name") or self.stream_name
-        
+
         if self.config.get("batch_size"):
             self.max_size = self.config["batch_size"]
 
@@ -35,12 +35,12 @@ class WeaviateSink(BatchSink):
             )
         return self._client
 
-    def _ensure_collection_initialized(self, sample_record: dict | None = None):
+    def _ensure_collection_initialized(self, sample_record: dict | None = None) -> None:
         if self._collection_initialized:
             return
-            
+
         exists = self.client.collection_exists(self.collection_name)
-        
+
         if exists and self.config.get("load_method") == TargetLoadMethods.OVERWRITE:
             count = self.client.count_objects(self.collection_name)
             if count > 0:
@@ -54,38 +54,41 @@ class WeaviateSink(BatchSink):
                 self.logger.info(
                     f"The load_method is {TargetLoadMethods.OVERWRITE} but the collection is empty, not re-creating."
                 )
-        
+
         if not exists:
             if self.config.get("create_collection_if_missing", True):
                 properties = None
                 if sample_record and self.schema:
                     properties = self._infer_properties_from_schema()
-                
+
                 self.client.create_collection(
                     self.collection_name,
                     properties=properties,
                     vectorizer=self.config.get("vectorizer"),
                 )
             else:
-                raise ValueError(
+                msg = (
                     f"Collection '{self.collection_name}' does not exist and "
                     f"create_collection_if_missing is False"
                 )
-        
+                raise ValueError(
+                    msg
+                )
+
         self._collection_initialized = True
 
     def _infer_properties_from_schema(self) -> list[dict]:
         if not self.schema or "properties" not in self.schema:
             return None
-            
+
         properties = []
         for prop_name, prop_def in self.schema["properties"].items():
             prop_type = prop_def.get("type", [])
-            
+
             if isinstance(prop_type, list):
                 prop_type = [t for t in prop_type if t != "null"]
                 prop_type = prop_type[0] if prop_type else "string"
-            
+
             if prop_type in ["string", "date-time", "date", "time"]:
                 data_type = "TEXT"
             elif prop_type in ["integer", "number"]:
@@ -98,18 +101,18 @@ class WeaviateSink(BatchSink):
                 data_type = "OBJECT"
             else:
                 data_type = "TEXT"
-            
+
             properties.append({
                 "name": prop_name,
                 "data_type": data_type,
             })
-        
+
         return properties
 
     def process_record(self, record: dict, context: dict) -> None:
         if not self._collection_initialized:
             self._ensure_collection_initialized(sample_record=record)
-        
+
         if "records" not in context:
             context["records"] = []
 
@@ -133,11 +136,12 @@ class WeaviateSink(BatchSink):
     def _batch_upsert(self, records: list[dict]) -> None:
         primary_key = self.config.get("primary_key")
         if not primary_key:
-            raise ValueError("primary_key must be specified when load_method is 'upsert'")
+            msg = "primary_key must be specified when load_method is 'upsert'"
+            raise ValueError(msg)
 
         self.logger.info(f"Upserting {len(records)} records into '{self.collection_name}'")
         collection = self.client.get_collection(self.collection_name)
-        
+
         with collection.batch.dynamic() as batch:
             for record in records:
                 key_values = {key: record.get(key) for key in primary_key if key in record}
@@ -152,9 +156,9 @@ class WeaviateSink(BatchSink):
                 # generate deterministic uuid from primary key
                 key_string = ":".join(str(key_values[k]) for k in sorted(primary_key))
                 deterministic_uuid = uuid.UUID(hashlib.md5(key_string.encode()).hexdigest())
-                
+
                 batch.add_object(properties=record, uuid=deterministic_uuid)
-        
+
         self.logger.info(f"Batch upsert completed for {len(records)} records")
 
     def clean_up(self) -> None:
