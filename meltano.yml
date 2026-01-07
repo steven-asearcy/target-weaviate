@@ -1,0 +1,37 @@
+version: 1
+send_anonymous_usage_stats: true
+project_id: "target-weaviate"
+default_environment: test
+environments:
+- name: test
+plugins:
+  extractors: []
+  loaders:
+  - name: "target-weaviate"
+    namespace: "target_weaviate"
+    pip_url: -e .
+    executable: target-weaviate
+    capabilities:
+    - about
+    - stream-maps
+    - schema-flattening
+    settings:
+    - name: weaviate_url
+      kind: string
+    - name: weaviate_api_key
+      kind: password
+    - name: collection_name
+      kind: string
+    - name: load_method
+      kind: options
+    - name: primary_key
+      kind: array
+    - name: batch_size
+      kind: integer
+    - name: add_record_metadata
+      kind: object
+    - name: vectorizer
+      kind: string
+    - name: create_collection_if_missing
+      kind: boolean
+
