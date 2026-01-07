@@ -74,7 +74,8 @@ Thumbs.db
 meltano.db
 output/
 
-# Singer
-*.singer
+# Singer output files (but not test fixtures)
+output/*.singer
 *.state
+!tests/**/*.singer
 
