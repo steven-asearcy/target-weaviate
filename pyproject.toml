@@ -17,13 +17,13 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-singer-sdk = "~=0.39.0"
+singer-sdk = "~=0.48.1"
 weaviate-client = "^4.9.0"
 requests = "^2.31.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.4.2"
-singer-sdk = { version="~=0.39.0", extras = ["testing"] }
+singer-sdk = { version="~=0.48.1", extras = ["testing"] }
 ruff = "^0.14.10"
 poetry-dynamic-versioning = "^1.0.0"
 
