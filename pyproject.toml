@@ -25,7 +25,7 @@ requests = "^2.31.0"
 pytest = "^8.4.2"
 singer-sdk = { version="~=0.48.1", extras = ["testing"] }
 ruff = "^0.14.10"
-poetry-dynamic-versioning = "^1.0.0"
+poetry-dynamic-versioning = "^1.10.0"
 
 [tool.ruff]
 ignore = [
