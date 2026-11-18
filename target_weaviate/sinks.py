@@ -8,7 +8,11 @@ import uuid
 from singer_sdk.helpers.capabilities import TargetLoadMethods
 from singer_sdk.sinks import BatchSink
 
-from target_weaviate.client import WeaviateClient
+from target_weaviate.client import (
+    WeaviateClient,
+    raise_for_failed_objects,
+    to_weaviate_value,
+)
 
 
 class WeaviateSink(BatchSink):
@@ -98,7 +102,8 @@ class WeaviateSink(BatchSink):
             elif prop_type == "array":
                 data_type = "TEXT_ARRAY"
             elif prop_type == "object":
-                data_type = "OBJECT"
+                # weaviate needs nested properties for objects, so let auto-schema add them from the data
+                continue
             else:
                 data_type = "TEXT"
 
@@ -119,7 +124,7 @@ class WeaviateSink(BatchSink):
         if self.config.get("add_record_metadata"):
             record.update(self.config["add_record_metadata"])
 
-        context["records"].append(record)
+        context["records"].append(to_weaviate_value(record))
 
     def process_batch(self, context: dict) -> None:
         records = context["records"]
@@ -158,6 +163,7 @@ class WeaviateSink(BatchSink):
                 deterministic_uuid = uuid.UUID(hashlib.md5(key_string.encode()).hexdigest())
 
                 batch.add_object(properties=record, uuid=deterministic_uuid)
+        raise_for_failed_objects(collection)
 
         self.logger.info(f"Batch upsert completed for {len(records)} records")
 

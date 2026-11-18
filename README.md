@@ -62,10 +62,10 @@ Deletes all existing records in the collection before inserting new data.
 
 ## Supported Python Versions
 
-* 3.9
-* 3.10
 * 3.11
 * 3.12
+* 3.13
+* 3.14
 
 ## Installation
 
