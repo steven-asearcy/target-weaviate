@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import typing as t
 import uuid
+from decimal import Decimal
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from singer_sdk.testing import TargetTestRunner
 
+from target_weaviate.client import to_weaviate_value
 from target_weaviate.target import TargetWeaviate
 
 SAMPLE_CONFIG: dict[str, t.Any] = {
@@ -47,6 +50,7 @@ def test_upsert_with_primary_key(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     runner = TargetTestRunner(
@@ -81,6 +85,7 @@ def test_overwrite_deletes_collection(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -114,6 +119,7 @@ def test_append_only_no_primary_key(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -147,6 +153,7 @@ def test_create_collection_if_missing(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     runner = TargetTestRunner(
@@ -157,6 +164,38 @@ def test_create_collection_if_missing(mock_weaviate) -> None:
     runner.sync_all()
 
     assert mock_collections.create.called
+
+
+@mock.patch("target_weaviate.client.weaviate")
+def test_object_fields_left_to_auto_schema(mock_weaviate) -> None:
+    """Test object fields are not declared when creating the collection."""
+    mock_client_instance = mock.MagicMock()
+    mock_weaviate.connect_to_weaviate_cloud.return_value = mock_client_instance
+
+    mock_collections = mock.MagicMock()
+    mock_client_instance.collections = mock_collections
+    mock_collections.exists.return_value = False
+
+    mock_collection = mock.MagicMock()
+    mock_collections.get.return_value = mock_collection
+
+    mock_batch_context = mock.MagicMock()
+    mock_batch = mock.MagicMock()
+    mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
+    mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
+    mock_collection.batch = mock_batch
+
+    runner = TargetTestRunner(
+        TargetWeaviate,
+        config=SAMPLE_CONFIG,
+        input_filepath=Path("tests/target_test_streams/test_stream.singer"),
+    )
+    runner.sync_all()
+
+    property_names = [p.name for p in mock_collections.create.call_args.kwargs["properties"]]
+    assert "metadata" not in property_names
+    assert "title" in property_names
 
 
 @mock.patch("target_weaviate.client.weaviate")
@@ -176,6 +215,7 @@ def test_collection_with_vectorizer(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -208,6 +248,7 @@ def test_local_weaviate_connection(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -241,6 +282,7 @@ def test_batch_size_configuration(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -300,6 +342,7 @@ def test_overwrite_empty_collection_no_delete(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -332,6 +375,7 @@ def test_add_record_metadata(mock_weaviate) -> None:
     mock_batch = mock.MagicMock()
     mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock_batch_context)
     mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = []
     mock_collection.batch = mock_batch
 
     config = SAMPLE_CONFIG.copy()
@@ -345,3 +389,39 @@ def test_add_record_metadata(mock_weaviate) -> None:
     runner.sync_all()
 
     assert mock_batch_context.add_object.call_count == 2
+
+
+def test_decimals_converted_to_floats() -> None:
+    """Test Decimal values are converted so the weaviate client can send them."""
+    record = {"value": Decimal("42.5"), "metadata": {"score": Decimal(1)}, "tags": [Decimal("0.1")]}
+    converted = to_weaviate_value(record)
+    assert converted == {"value": 42.5, "metadata": {"score": 1.0}, "tags": [0.1]}
+    assert isinstance(converted["value"], float)
+
+
+@mock.patch("target_weaviate.client.weaviate")
+def test_failed_objects_raise(mock_weaviate) -> None:
+    """Test the target fails when weaviate rejects objects in a batch."""
+    mock_client_instance = mock.MagicMock()
+    mock_weaviate.connect_to_weaviate_cloud.return_value = mock_client_instance
+
+    mock_collections = mock.MagicMock()
+    mock_client_instance.collections = mock_collections
+    mock_collections.exists.return_value = True
+
+    mock_collection = mock.MagicMock()
+    mock_collections.get.return_value = mock_collection
+
+    mock_batch = mock.MagicMock()
+    mock_batch.dynamic.return_value.__enter__ = mock.MagicMock(return_value=mock.MagicMock())
+    mock_batch.dynamic.return_value.__exit__ = mock.MagicMock(return_value=False)
+    mock_batch.failed_objects = [mock.MagicMock(message="Unexpected type")] * 2
+    mock_collection.batch = mock_batch
+
+    runner = TargetTestRunner(
+        TargetWeaviate,
+        config=SAMPLE_CONFIG,
+        input_filepath=Path("tests/target_test_streams/test_stream.singer"),
+    )
+    with pytest.raises(RuntimeError, match="Failed to load 2 object"):
+        runner.sync_all()

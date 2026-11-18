@@ -2,8 +2,29 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import weaviate
 from weaviate.classes.config import Configure, DataType, Property
+
+
+def to_weaviate_value(value):
+    """Convert Decimals from the Singer SDK to floats, since the weaviate client can't send them."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {k: to_weaviate_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [to_weaviate_value(v) for v in value]
+    return value
+
+
+def raise_for_failed_objects(collection) -> None:
+    """Raise if the last batch on this collection had objects weaviate rejected."""
+    failed = collection.batch.failed_objects
+    if failed:
+        msg = f"Failed to load {len(failed)} object(s) into '{collection.name}': {failed[0].message}"
+        raise RuntimeError(msg)
 
 
 class WeaviateClient:
@@ -114,6 +135,7 @@ class WeaviateClient:
         with collection.batch.dynamic() as batch:
             for record in records:
                 batch.add_object(properties=record)
+        raise_for_failed_objects(collection)
 
     def count_objects(self, collection_name: str) -> int:
         collection = self.get_collection(collection_name)
