@@ -3,7 +3,7 @@ name = "target-weaviate"
 version = "0.0.1"
 description = "`target-weaviate` is a Singer target for Weaviate, built with the Meltano Singer SDK."
 readme = "README.md"
-authors = ["Steven Searcy <steven@foodhealth.co>"]
+authors = ["Steven Searcy <searcy.stevena@gmail.com>"]
 keywords = [
     "ELT",
     "Weaviate",
@@ -16,21 +16,24 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-singer-sdk = "~=0.48.1"
-weaviate-client = "^4.9.0"
+python = ">=3.11,<3.15"
+singer-sdk = "~=0.54.9"
+weaviate-client = "^4.24.0"
 requests = "^2.31.0"
 
-[tool.poetry.dev-dependencies]
-pytest = "^8.4.2"
-singer-sdk = { version="~=0.48.1", extras = ["testing"] }
-ruff = "^0.14.10"
-poetry-dynamic-versioning = "^1.0.0"
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.2.0"
+singer-sdk = { version="~=0.54.9", extras = ["testing"] }
+ruff = "^0.17.5"
+poetry-dynamic-versioning = "^1.10.1"
 
 [tool.ruff]
+src = ["target_weaviate"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
 ignore = [
-    "ANN101",  # missing-type-self
-    "ANN102",  # missing-type-cls
     "ANN001",  # missing-type-function-argument
     "ANN002",  # missing-type-args
     "ANN003",  # missing-type-kwargs
@@ -49,18 +52,16 @@ ignore = [
     "TRY003",  # raise-vanilla-args
     "EM101",   # raw-string-in-exception
     "EM102",   # f-string-in-exception
+    "CPY001",  # missing-copyright-notice
 ]
-select = ["ALL"]
-src = ["target_weaviate"]
-target-version = "py39"
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["target_weaviate"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [build-system]
